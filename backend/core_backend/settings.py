@@ -121,7 +121,7 @@ STATIC_URL = 'static/'
 
 # Cross-Origin Security Sandbox Overrides
 CORS_ALLOWED_ORIGINS = [
-    "https://edu-p-luse-ai-k2r9.vercel.app",
+    "https://edu-p-luse-frontend-ai-k2r9.vercel.app",
     "http://localhost:5173",
     "http://localhost:5174",
     "true" ,
