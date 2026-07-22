@@ -33,7 +33,9 @@ function convertMarkdownShorthand(t) {
 }
 
 const DEFAULT_FLASHCARDS = [
-  { q: 'What is the primary architectural bottleneck in standard B-Trees?', a: 'Disk I/O operations structural bounds caused by deep hierarchy node traversals.' }
+  { q: 'What is the primary architectural bottleneck in standard B-Trees?', a: 'Disk I/O operations structural bounds caused by deep hierarchy node traversals.' },
+  { q: 'Explain the space complexity efficiency parameter of a Breadth-First Search (BFS) algorithm.', a: 'O(W) where W equals the maximum width of the architectural tree structure branch.' },
+  { q: "How does 'Spaced Repetition' affect long-term structural retention of complex code paradigms?", a: 'It shifts tracking evaluations out sequentially to flatten the psychological forgetting curve.' }
 ];
 
 export default function App() {
@@ -49,6 +51,7 @@ export default function App() {
   const messages = useLiveQuery(() => localDB.messages.orderBy('timestamp').toArray()) || [];
   const onlineStatus = useLiveQuery(() => navigator.onLine);
 
+  // ── Flashcards Subsystem ──
   const [flashcards, setFlashcards] = useState(DEFAULT_FLASHCARDS);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -65,12 +68,15 @@ export default function App() {
     }, 150);
   }, [flashcards.length]);
 
+  // ── Exam Countdown Tracker & Editing Controls ──
   const [examTitle, setExamTitle] = useState(() => localStorage.getItem('edupulse_exam_title') || 'Time to Finals');
   const [examTargetTime, setExamTargetTime] = useState(() => parseInt(localStorage.getItem('edupulse_exam_target_time')) || (Date.now() + 14 * 24 * 60 * 60 * 1000));
   const [countdownStr, setCountdownStr] = useState('');
   const [showTimingModal, setShowTimingModal] = useState(false);
   const [modalExamTitle, setModalExamTitle] = useState('');
+  const [modalDatetime, setModalDatetime] = useState('');
 
+  // ── Live Countdown Timer Calculation ──
   const updateCountdown = useCallback(() => {
     const delta = examTargetTime - Date.now();
     if (delta <= 0) { setCountdownStr('EXAM PERIOD ACTIVE'); return; }
@@ -87,6 +93,29 @@ export default function App() {
     return () => clearInterval(id);
   }, [updateCountdown]);
 
+  const handleOpenTimingModal = () => {
+    setModalExamTitle(examTitle);
+    const localIso = new Date(examTargetTime - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    setModalDatetime(localIso);
+    setShowTimingModal(true);
+  };
+
+  const handleSaveExamTiming = (e) => {
+    e.preventDefault();
+    const title = modalExamTitle.trim() || 'Time to Finals';
+    if (!modalDatetime) return;
+
+    const newTargetMs = new Date(modalDatetime).getTime();
+    if (isNaN(newTargetMs)) return;
+
+    setExamTitle(title);
+    setExamTargetTime(newTargetMs);
+    localStorage.setItem('edupulse_exam_title', title);
+    localStorage.setItem('edupulse_exam_target_time', newTargetMs.toString());
+    setShowTimingModal(false);
+  };
+
+  // ── Session Switcher & Supabase Integration ──
   const switchActiveSession = async (sessionId) => {
     if (!sessionId) return;
     setActiveSessionId(sessionId);
@@ -116,6 +145,7 @@ export default function App() {
   const createNewChatThread = async (studentEmail) => {
     const email = studentEmail || user?.email;
     if (!email) return;
+
     if (!navigator.onLine) {
       alert("Cannot build new chat tracks while working offline.");
       return;
@@ -146,7 +176,6 @@ export default function App() {
     } catch (e) { console.error('Failed spinning session trace context:', e); }
   };
 
-  // ── Target Feature: Delete Individual Chat Session Matrix ──
   const handleDeleteSession = async (sessionId) => {
     if (!navigator.onLine) {
       alert("Online access required to clear cloud cluster storage instances.");
@@ -172,7 +201,6 @@ export default function App() {
     } catch (e) { console.error("Session removal fault:", e); }
   };
 
-  // ── Target Feature: Rename Individual Chat Session Module ──
   const handleRenameSession = async (sessionId, newTitle) => {
     if (!newTitle.trim() || !navigator.onLine) return;
     try {
@@ -208,6 +236,75 @@ export default function App() {
       loadUserSessions(user.email);
     }
   }, [user, loadUserSessions]);
+
+  // ── Mock Exam Generator ──
+  const launchMockExam = async () => {
+    setActiveTab('chat');
+    if (!activeSessionId) {
+      alert("Please select or create an active chat session first.");
+      return;
+    }
+
+    const systemPromptText = "Generate a challenging 3-question mock exam assessment strictly tailored to my course degree criteria. Present the questions clearly with numbered options, and highlight typical exam traps.";
+    
+    await localDB.messages.add({
+      role: 'user',
+      text: '📝 *Simulate Live Mock Exam*',
+      timestamp: Date.now(),
+      synced: navigator.onLine ? 1 : 0
+    });
+
+    if (navigator.onLine) {
+      await supabase.from('chat_messages').insert([{
+        session_id: activeSessionId,
+        role: 'user',
+        text: '📝 *Simulate Live Mock Exam*',
+        timestamp: Date.now()
+      }]);
+    } else {
+      return;
+    }
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/chat/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: systemPromptText,
+          student_name: user?.name || 'Student',
+          student_degree: user?.meta || 'Computer Science',
+          history: []
+        })
+      });
+
+      const data = await response.json();
+      const aiResponse = response.ok ? data.response : `⚠️ Mock Exam Generation Failed.`;
+
+      await localDB.messages.add({
+        role: 'assistant',
+        text: aiResponse,
+        timestamp: Date.now(),
+        synced: 1
+      });
+
+      if (navigator.onLine) {
+        await supabase.from('chat_messages').insert([{
+          session_id: activeSessionId,
+          role: 'assistant',
+          text: aiResponse,
+          timestamp: Date.now()
+        }]);
+      }
+    } catch (e) {
+      console.error('Mock exam error:', e);
+      await localDB.messages.add({
+        role: 'assistant',
+        text: '🚨 Server endpoint connection error while generating mock exam.',
+        timestamp: Date.now(),
+        synced: 0
+      });
+    }
+  };
 
   const handleChatSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -279,7 +376,7 @@ export default function App() {
           onCreateNewChat={() => createNewChatThread(user.email)}
           onDeleteSession={handleDeleteSession}
           onRenameSession={handleRenameSession}
-          openTimingModal={() => setShowTimingModal(true)}
+          openTimingModal={handleOpenTimingModal}
         />
 
         <main className="main-content">
@@ -288,6 +385,7 @@ export default function App() {
               messages={messages} chatInput={chatInput} setChatInput={setChatInput} 
               handleChatSubmit={handleChatSubmit} setSidebarOpen={setSidebarOpen} 
               convertMarkdownShorthand={convertMarkdownShorthand} 
+              launchMockExam={launchMockExam}
             />
           </section>
           <section className={`tab-pane ${activeTab === 'quiz' ? 'active' : ''}`}>
@@ -297,10 +395,71 @@ export default function App() {
             <FlashcardsPanel currentCard={flashcards[currentCardIndex] || { q: '', a: '' }} currentCardIndex={currentCardIndex} totalCards={flashcards.length} isFlipped={isFlipped} setIsFlipped={setIsFlipped} navigateFlashcards={navigateFlashcards} setSidebarOpen={setSidebarOpen} />
           </section>
           <section className={`tab-pane ${activeTab === 'analytics' ? 'active' : ''}`}>
-            <AnalyticsPanel setSidebarOpen={setSidebarOpen} /> {/* Dexie useLiveQuery hooks handle internal logic automatically */}
+            <AnalyticsPanel setSidebarOpen={setSidebarOpen} />
           </section>
         </main>
       </div>
+
+      {/* ── Exam Target Date & Time Configuration Modal ── */}
+      {showTimingModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '420px', padding: '1.5rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Configure Exam Target</h3>
+              <button type="button" onClick={() => setShowTimingModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.4rem', cursor: 'pointer' }}>&times;</button>
+            </div>
+            
+            <form onSubmit={handleSaveExamTiming}>
+              <div className="input-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Exam / Assessment Title</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={modalExamTitle} 
+                  onChange={e => setModalExamTitle(e.target.value)} 
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'white', borderRadius: 'var(--radius-sm)' }}
+                />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Target Date &amp; Time</label>
+                <input 
+                  type="datetime-local" 
+                  required 
+                  value={modalDatetime} 
+                  onChange={e => setModalDatetime(e.target.value)} 
+                  style={{ width: '100%', padding: '0.6rem 0.75rem', background: 'var(--bg-primary)', border: '1px solid var(--border)', color: 'white', borderRadius: 'var(--radius-sm)' }}
+                />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '0.4rem' }}>Quick Presets</label>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[1, 3, 7, 14, 30].map(days => (
+                    <button 
+                      type="button" 
+                      key={days} 
+                      onClick={() => {
+                        const targetMs = Date.now() + days * 24 * 60 * 60 * 1000;
+                        const localIso = new Date(targetMs - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+                        setModalDatetime(localIso);
+                      }}
+                      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}
+                    >
+                      +{days} {days === 7 ? 'Wk' : days === 30 ? 'Mo' : 'Days'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowTimingModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
