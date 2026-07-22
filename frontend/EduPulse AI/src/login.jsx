@@ -106,7 +106,7 @@ export default function Login({ onAuthSuccess }) {
 
     if (authMode === 'login') {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/auth/login/', {
+        const response = await fetch('https://edu-p-luse-backend-ai.vercel.app/api/auth/login/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -122,7 +122,7 @@ export default function Login({ onAuthSuccess }) {
       }
     } else if (authMode === 'register') {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/auth/register/', {
+        const response = await fetch('https://edu-p-luse-backend-ai.vercel.app/api/auth/register/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password, course: degree })
@@ -139,7 +139,7 @@ export default function Login({ onAuthSuccess }) {
       }
     } else if (authMode === 'forgot') {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/auth/forgot-password/', {
+        const response = await fetch('https://edu-p-luse-backend-ai.vercel.app/api/auth/forgot-password/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
