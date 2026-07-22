@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-7pv=jz^6yw6dg-3ddn@7!%a-c!w_8g6t+n)ui&g=vta4^99r3&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -120,4 +120,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # Cross-Origin Security Sandbox Overrides
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://edu-p-luse-ai-k2r9.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "true" ,
+]
